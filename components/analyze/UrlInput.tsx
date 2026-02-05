@@ -1,63 +1,75 @@
-import { Input } from "@/components/ui/Input";
+"use client";
+
+import { useState } from "react";
 import { Button } from "@/components/ui/Button";
+import { Input } from "@/components/ui/Input";
 
 interface UrlInputProps {
-  value: string;
-  onChange: (value: string) => void;
+  onSubmit: (url: string) => void;
   error?: string;
-  onSubmit: () => void;
   disabled?: boolean;
 }
 
-export function UrlInput({
-  value,
-  onChange,
-  error,
-  onSubmit,
-  disabled = false,
-}: UrlInputProps) {
-  const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
-    if (e.key === "Enter" && !disabled) {
-      onSubmit();
+export function UrlInput({ onSubmit, error: externalError, disabled = false }: UrlInputProps) {
+  const [value, setValue] = useState("");
+  const [localError, setLocalError] = useState<string | undefined>();
+
+  const error = externalError || localError;
+
+  const isValidUrl = (str: string): boolean => {
+    try {
+      const url = new URL(str);
+      return url.protocol === "http:" || url.protocol === "https:";
+    } catch {
+      return false;
     }
+  };
+
+  const handleSubmit = () => {
+    setLocalError(undefined);
+
+    if (!value.trim()) {
+      setLocalError("Enter a video URL");
+      return;
+    }
+
+    if (!isValidUrl(value.trim())) {
+      setLocalError("Enter a valid URL");
+      return;
+    }
+
+    onSubmit(value.trim());
+  };
+
+  const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
+    if (e.key === "Enter" && !disabled) handleSubmit();
   };
 
   return (
     <div className="w-full max-w-xl space-y-3">
-      <label
-        htmlFor="video-url"
-        className="block text-sm font-medium text-zinc-300"
-      >
-        Paste a short-form video URL
-      </label>
-
       <div className="flex gap-3">
         <Input
-          id="video-url"
           type="url"
           value={value}
-          onChange={(e) => onChange(e.target.value)}
+          onChange={(e) => {
+            setValue(e.target.value);
+            if (localError) setLocalError(undefined);
+          }}
           onKeyDown={handleKeyDown}
           placeholder="https://youtube.com/shorts/..."
           aria-invalid={!!error}
-          aria-describedby={error ? "url-error" : undefined}
           disabled={disabled}
         />
-
-        <Button onClick={onSubmit} disabled={disabled} variant="primary">
+        <Button onClick={handleSubmit} disabled={disabled} variant="primary">
           Analyze
         </Button>
       </div>
 
       {error && (
-        <p id="url-error" className="text-sm text-red-400" role="alert">
+        <p className="text-sm text-red-400" role="alert">
           {error}
         </p>
       )}
-
-      <p className="text-xs text-zinc-500">
-        Supported: YouTube Shorts • TikTok • Instagram Reels
-      </p>
     </div>
   );
 }

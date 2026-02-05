@@ -1,17 +1,21 @@
-export function LoadingState() {
-    return (
-      <div className="flex flex-col items-center justify-center gap-4 py-12">
-        <div className="relative h-10 w-10">
-          <div className="absolute inset-0 rounded-full border-2 border-zinc-700" />
-          <div className="absolute inset-0 rounded-full border-2 border-transparent border-t-white animate-spin" />
-        </div>
-  
-        <div className="text-center space-y-1">
-          <p className="text-sm font-medium text-zinc-200">Analyzing video...</p>
-          <p className="text-xs text-zinc-500">
-            Extracting hooks, structure, and mechanics
-          </p>
-        </div>
+type Mode = "viral" | "own";
+
+interface LoadingStateProps {
+  mode: Mode;
+}
+
+export function LoadingState({ mode }: LoadingStateProps) {
+  return (
+    <div className="flex flex-col items-center gap-4 py-16">
+      <div className="w-8 h-8 border-2 border-zinc-700 border-t-zinc-100 rounded-full animate-spin" />
+      <div className="text-center space-y-2">
+        <p className="text-sm font-medium text-zinc-200">
+          {mode === "viral" ? "Analyzing structure..." : "Diagnosing your video..."}
+        </p>
+        <p className="text-xs text-zinc-500">
+          Fetching transcript → Mapping beats → Building analysis
+        </p>
       </div>
-    );
-  }
+    </div>
+  );
+}
