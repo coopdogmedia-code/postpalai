@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useCallback } from "react";
-import { UrlInput } from "@/components/analyze/UrlInput";
+import { AnalyzeInput } from "@/components/analyze/AnalyzeInput";
 import { LoadingState } from "@/components/analyze/LoadingState";
 import { BlueprintResults } from "@/components/analyze/BlueprintResults";
 
@@ -16,80 +16,109 @@ interface BlueprintData {
   notes: string[];
 }
 
-function isValidUrl(value: string): boolean {
-  try {
-    const url = new URL(value);
-    return url.protocol === "http:" || url.protocol === "https:";
-  } catch {
-    return false;
-  }
-}
-
 export default function AnalyzePage() {
   const [state, setState] = useState<AnalyzeState>("idle");
-  const [url, setUrl] = useState("");
   const [error, setError] = useState<string | undefined>();
   const [blueprint, setBlueprint] = useState<BlueprintData | null>(null);
-  const [analyzedUrl, setAnalyzedUrl] = useState("");
+  const [sourceLabel, setSourceLabel] = useState("");
 
-  const handleAnalyze = useCallback(async () => {
-    setError(undefined);
+  const handleError = (message: string) => {
+    setState("error");
+    setError(message);
+  };
 
-    if (!url.trim()) {
-      setError("Enter a video URL");
-      return;
-    }
+  const handleSuccess = (data: BlueprintData, source: string) => {
+    setBlueprint(data);
+    setSourceLabel(source);
+    setState("success");
+  };
 
-    if (!isValidUrl(url.trim())) {
-      setError("Enter a valid URL");
-      return;
-    }
-
+  const handleFileSelect = useCallback(async (file: File) => {
     setState("loading");
-    setAnalyzedUrl(url.trim());
+    setError(undefined);
+    setSourceLabel(file.name);
 
     try {
-      const response = await fetch("/api/analyze", {
+      const formData = new FormData();
+      formData.append("file", file);
+
+      const response = await fetch("/api/analyze/transcribe", {
         method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({ url: url.trim() }),
+        body: formData,
       });
 
       const data = await response.json();
 
       if (!response.ok) {
-        setState("error");
-        setError(data.error || "Something went wrong. Please try again.");
+        handleError(data.error || "Failed to analyze video");
         return;
       }
 
-      setBlueprint(data);
-      setState("success");
+      handleSuccess(data, file.name);
     } catch (err) {
-      console.error("Analyze error:", err);
-      setState("error");
-      setError("Network error. Please check your connection and try again.");
+      console.error("Upload error:", err);
+      handleError("Network error. Please try again.");
     }
-  }, [url]);
+  }, []);
+
+  const handleUrlSubmit = useCallback(async (url: string) => {
+    setState("loading");
+    setError(undefined);
+    setSourceLabel(url);
+
+    try {
+      const response = await fetch("/api/analyze", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ url }),
+      });
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        handleError(data.error || "Failed to analyze video");
+        return;
+      }
+
+      handleSuccess(data, url);
+    } catch (err) {
+      console.error("URL error:", err);
+      handleError("Network error. Please try again.");
+    }
+  }, []);
+
+  const handleTranscriptSubmit = useCallback(async (transcript: string) => {
+    setState("loading");
+    setError(undefined);
+    setSourceLabel("Pasted transcript");
+
+    try {
+      const response = await fetch("/api/analyze/transcript", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ transcript }),
+      });
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        handleError(data.error || "Failed to analyze transcript");
+        return;
+      }
+
+      handleSuccess(data, "Pasted transcript");
+    } catch (err) {
+      console.error("Transcript error:", err);
+      handleError("Network error. Please try again.");
+    }
+  }, []);
 
   const handleReset = useCallback(() => {
     setState("idle");
-    setUrl("");
     setError(undefined);
     setBlueprint(null);
-    setAnalyzedUrl("");
+    setSourceLabel("");
   }, []);
-
-  const handleUrlChange = useCallback(
-    (value: string) => {
-      setUrl(value);
-      if (error) setError(undefined);
-      if (state === "error") setState("idle");
-    },
-    [error, state]
-  );
 
   return (
     <main className="min-h-screen flex flex-col items-center justify-center px-4 py-12">
@@ -100,26 +129,31 @@ export default function AnalyzePage() {
           </h1>
           {(state === "idle" || state === "error") && (
             <p className="text-sm text-zinc-500">
-              Paste a link to reverse-engineer its viral mechanics
+              Upload a video, paste a link, or drop in a transcript
             </p>
           )}
         </div>
 
         {(state === "idle" || state === "error") && (
-          <UrlInput
-            value={url}
-            onChange={handleUrlChange}
-            error={error}
-            onSubmit={handleAnalyze}
-            disabled={false}
-          />
+          <>
+            <AnalyzeInput
+              onFileSelect={handleFileSelect}
+              onUrlSubmit={handleUrlSubmit}
+              onTranscriptSubmit={handleTranscriptSubmit}
+              disabled={false}
+              urlError={error}
+            />
+            {error && state === "error" && (
+              <p className="mt-4 text-sm text-red-400">{error}</p>
+            )}
+          </>
         )}
 
         {state === "loading" && <LoadingState />}
 
         {state === "success" && blueprint && (
           <BlueprintResults
-            url={analyzedUrl}
+            url={sourceLabel}
             blueprint={blueprint}
             onReset={handleReset}
           />
