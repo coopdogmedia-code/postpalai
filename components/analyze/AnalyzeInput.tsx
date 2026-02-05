@@ -2,8 +2,8 @@
 
 import { useState } from "react";
 import { VideoUpload } from "./VideoUpload";
-import { UrlInput } from "./UrlInput";
-import { TranscriptInput } from "./TranscriptInput";
+import { UrlInput } from "../../app/analyze/UrlInput";
+import { TranscriptInput } from "../../app/analyze/TranscriptInput";
 
 type InputMode = "upload" | "url" | "transcript";
 
